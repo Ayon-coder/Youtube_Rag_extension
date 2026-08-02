@@ -1,0 +1,12 @@
+# YouTube RAG Backend – direct dependencies only
+fastapi
+uvicorn[standard]
+python-dotenv
+youtube-transcript-api
+langchain-classic
+langchain-core
+langchain-groq
+langchain-google-genai
+langchain-chroma
+langchain-pinecone
+pinecone

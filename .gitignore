@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node
+node_modules/
+FRONTEND/dist/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Pinecone / Chroma local
+Youtube_cap/
+chroma_db/
+
+# Vercel
+.vercel/
