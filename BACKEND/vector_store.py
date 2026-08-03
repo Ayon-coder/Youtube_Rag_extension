@@ -29,7 +29,7 @@ if index_name not in pc.list_indexes().names():
 index = pc.Index(index_name)
 
 
-def storing(video_id):
+def storing(video_id, caption_text=None):
 
     vector_store = PineconeVectorStore(
         index=index,
@@ -52,7 +52,10 @@ def storing(video_id):
             except Exception:
                 pass
 
-    docs = generating(video_id)
+    if not caption_text or not caption_text.strip():
+        raise ValueError("caption_text is required when indexing a new video")
+
+    docs = generating(video_id, caption_text)
     vector_store.add_documents(docs)
 
-    return vector_store
+    return vector_store

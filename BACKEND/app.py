@@ -46,6 +46,7 @@ def startup():
 
 class PrepareRequest(BaseModel):
     video_id: str
+    caption_text: str | None = None
 
 
 class AskRequest(BaseModel):
@@ -70,10 +71,18 @@ def prepare(req: PrepareRequest):
         if ns_count > 0:
             return {"status": "ready"}
 
-        build_retriever(req.video_id)
+        if not req.caption_text or not req.caption_text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="caption_text is required when preparing a new video"
+            )
+
+        build_retriever(req.video_id, req.caption_text)
         return {"status": "ready"}
 
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 

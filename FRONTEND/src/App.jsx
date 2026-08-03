@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ask, getActiveVideo, prepare } from './api'
+import { ask, getActiveVideo, prepareWithCaptions } from './api'
 import { clearThread, loadThread, saveThread } from './storage'
 
 const SUGGESTIONS = [
@@ -7,8 +7,6 @@ const SUGGESTIONS = [
   'What are the key takeaways?',
   'Explain the main argument',
 ]
-
-const POLL_INTERVAL = 9000 // 9 seconds
 
 export default function App() {
   const [video, setVideo] = useState({ videoId: null, title: null, ready: false })
@@ -28,33 +26,27 @@ export default function App() {
     })
   }, [])
 
-  // Poll /prepare until the video is indexed
-  useEffect(() => {
-    if (!video.videoId || prepared) return
+  const prepareVideo = async () => {
+    if (!video.videoId || preparing || prepared) return
 
-    let cancelled = false
     setPreparing(true)
-
-    const poll = async () => {
-      try {
-        const res = await prepare(video.videoId)
-        if (!cancelled && res.status === 'ready') {
-          setPrepared(true)
-          setPreparing(false)
-        }
-      } catch {
-        // Backend not ready or timeout — will retry
+    try {
+      const res = await prepareWithCaptions(video.videoId)
+      if (res.status === 'ready') {
+        setPrepared(true)
       }
-
-      if (!cancelled && !prepared) {
-        setTimeout(poll, POLL_INTERVAL)
-      }
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'error',
+          text: err instanceof Error ? err.message : 'Failed to prepare video captions.',
+        },
+      ])
+    } finally {
+      setPreparing(false)
     }
-
-    poll() // first call immediately
-
-    return () => { cancelled = true }
-  }, [video.videoId])
+  }
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: 'smooth' })
@@ -129,11 +121,23 @@ export default function App() {
               ? 'open a watch page to begin'
               : preparing
                 ? 'preparing captions…'
+                : prepared
+                  ? 'captions ready'
                 : video.videoId
                   ? `id · ${video.videoId}`
                   : ''}
           </div>
         </div>
+        {!noVideo && (
+          <button
+            className="send"
+            onClick={prepareVideo}
+            disabled={preparing || prepared}
+            title="Prepare captions for this video"
+          >
+            {preparing ? 'Preparing…' : prepared ? 'Prepared' : 'Prepare Video'}
+          </button>
+        )}
       </div>
 
       <main className="thread" ref={threadRef}>
@@ -145,7 +149,9 @@ export default function App() {
                 ? 'Navigate to a YouTube video, then reopen this popup.'
                 : preparing
                   ? 'Fetching and indexing captions. This may take a moment…'
-                  : 'Questions are answered from this video\u2019s captions, not from the open web.'}
+                  : prepared
+                    ? 'Questions are answered from this video\u2019s captions, not from the open web.'
+                    : 'Click "Prepare Video" to fetch and index captions.'}
             </p>
             {!noVideo && prepared && (
               <div className="chips">

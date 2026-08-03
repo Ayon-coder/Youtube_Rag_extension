@@ -43,6 +43,65 @@ export async function prepare(videoId) {
   return await res.json()
 }
 
+async function fetchCaptionJson(videoId) {
+  const endpoints = [
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&kind=asr&fmt=json3`,
+  ]
+
+  for (const url of endpoints) {
+    const res = await fetch(url)
+    if (!res.ok) continue
+    const data = await res.json().catch(() => null)
+    if (data?.events?.length) return data
+  }
+
+  throw new Error('No English captions found for this video')
+}
+
+function captionJsonToText(data) {
+  return data.events
+    .flatMap((event) => event.segs ?? [])
+    .map((seg) => seg.utf8 ?? '')
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export async function prepareWithCaptions(videoId) {
+  const res = await fetch(`${API_BASE}/prepare`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video_id: videoId }),
+  })
+
+  if (res.ok) return await res.json()
+
+  if (res.status !== 400) {
+    throw new Error(`Backend returned ${res.status}`)
+  }
+
+  const payload = await res.json().catch(() => ({}))
+  const detail = payload?.detail ?? ''
+  if (!String(detail).includes('caption_text')) {
+    throw new Error(`Backend returned ${res.status}`)
+  }
+
+  const captionJson = await fetchCaptionJson(videoId)
+  const captionText = captionJsonToText(captionJson)
+  if (!captionText) {
+    throw new Error('Caption text is empty')
+  }
+
+  const prepareRes = await fetch(`${API_BASE}/prepare`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video_id: videoId, caption_text: captionText }),
+  })
+  if (!prepareRes.ok) throw new Error(`Backend returned ${prepareRes.status}`)
+  return await prepareRes.json()
+}
+
 export async function ask({ videoId, question, signal }) {
   const res = await fetch(`${API_BASE}/ask`, {
     method: 'POST',
