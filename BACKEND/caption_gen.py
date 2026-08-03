@@ -49,5 +49,3 @@ def generating(video_id):
         new_docs = []
 
     return new_docs
-
-print(generating("l0bj4ZZFQTY"))
