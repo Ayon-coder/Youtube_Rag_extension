@@ -1,23 +1,31 @@
-from youtube_transcript_api import YouTubeTranscriptApi
 from langchain_classic.schema import Document
 from langchain_classic.text_splitter import RecursiveCharacterTextSplitter
+import requests
+import yt_dlp
 
 def generating(video_id):
     new_docs = []
     try:
-        transcript = YouTubeTranscriptApi().fetch(video_id)
+        url = f"https://www.youtube.com/watch?v={video_id}"
 
-        text = "\n".join(
-                f"[{item.start:.2f}] {item.text}"
-                for item in transcript
-            )
-            
-        text = (
-        text.replace("\u200b", "")
-            .replace("\u200c", "")
-            .replace("\u200d", "")
-            .replace("\ufeff", "")
-    )
+        with yt_dlp.YoutubeDL({"skip_download": True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        captions = info.get("subtitles") or info.get("automatic_captions")
+
+        if not captions or "en" not in captions:
+            print("No English captions found")
+            exit()
+
+        caption_url = captions["en"][0]["url"]
+
+        data = requests.get(caption_url).json()
+
+        text = " ".join(
+            seg["utf8"]
+            for event in data["events"]
+            for seg in event.get("segs", [])
+        )
 
         docs = Document(
             page_content=text,
@@ -41,3 +49,5 @@ def generating(video_id):
         new_docs = []
 
     return new_docs
+
+print(generating("l0bj4ZZFQTY"))
